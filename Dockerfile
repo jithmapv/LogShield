@@ -2,7 +2,6 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /workspace
 
-# Update and upgrade system packages to patch base image vulnerabilities
 RUN apt-get update && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
