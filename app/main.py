@@ -7,9 +7,6 @@ from app.database import Base, engine, SessionLocal
 from app.engine.detector import detect_api_spikes, detect_brute_force, publish_incidents
 from app.routers import auth, incidents, logs, webhooks
 
-scheduler = AsyncIOScheduler()
-
-
 async def run_detection() -> None:
     db = SessionLocal()
     try:
@@ -20,13 +17,20 @@ async def run_detection() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    if not getattr(app.state, "testing", False):
-        Base.metadata.create_all(bind=engine)
-    scheduler.add_job(run_detection, "interval", seconds=15, id="log-detection", replace_existing=True)
+async def lifespan(application: FastAPI):
+    if getattr(application.state, "testing", False):
+        yield
+        return
+
+    Base.metadata.create_all(bind=engine)
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(run_detection, "interval", seconds=15, id="log-detection")
     scheduler.start()
-    yield
-    scheduler.shutdown(wait=False)
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+
 
 
 app = FastAPI(title="LogShield API", version="1.0.0", lifespan=lifespan)
